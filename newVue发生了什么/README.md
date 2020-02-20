@@ -109,18 +109,18 @@
     vm._isDestroyed = false
     vm._isBeingDestroyed = false
 ```
-    名称 | 说明 
-    ---- | ---- 
-    $parent | 已创建的实例的父实例,建立两者的父子关系,在开发中我们可以通过this.parent访问父实例,子实例会被推入父实例的children中
-    $root | 当前组件树的根Vue实例,如果当前没有父实例,那就是自己
-    $children | 当前实例的子组件,无序的
-    $refs | 对象,通过ref注册的所有子组件
-    _watcher | 组件实例对应的watcher实例对象
-    _inactive | keep-alive组件的状态 激活/未激活 true/false
-    _directInactive | keep-alive组件状态属性
-    _isMounted | 当前实例是否挂在完成,对应mounted生命周期钩子
-    _isDestoryed | 当前实例是否已销毁,对应destoryed生命周期钩子
-    _isBeingDestoryed | 当前实例正在被销毁,对应beforeDestory和destoryed中间
+| 名称 | 说明 |
+| ---- | ---- |
+| $parent | 已创建的实例的父实例,建立两者的父子关系,在开发中我们可以通过this.parent访问父实例,子实例会被推入父实例的children中 |
+| $root | 当前组件树的根Vue实例,如果当前没有父实例,那就是自己 |
+| $children | 当前实例的子组件,无序的 |
+| $refs | 对象,通过ref注册的所有子组件 |
+| _watcher | 组件实例对应的watcher实例对象 |
+| _inactive | keep-alive组件的状态 激活/未激活 true/false |
+| _directInactive | keep-alive组件状态属性 |
+| _isMounted | 当前实例是否挂在完成,对应mounted生命周期钩子 |
+| _isDestoryed | 当前实例是否已销毁,对应destoryed生命周期钩子 |
+| _isBeingDestoryed | 当前实例正在被销毁,对应beforeDestory和destoryed中间 |
 
 ## initEvents初始化事件
 
