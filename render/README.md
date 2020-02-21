@@ -118,7 +118,6 @@
 
 ```
     vnode = render.call(vm._renderProxy, vm.$createElement)
-
 ```
 
 > 把Vue实例渲染成VNode形式,定义在src/core/instance/render.js中
