@@ -114,7 +114,7 @@
 2. 执行beforeMount钩子
 3. 定义updateComponent方法,实际上是调用vm._update去触发更新
 4. 实例化一个渲染Watcher,用来监听更新,在before钩子中添加了beforeUpdate钩子函数,在组件生成后,销毁前会去执行beforeUpdate钩子
-5. 第一次编译时$vnode为null,把实例的_isMounted设置为true,执行mounted钩子
+5. vm._update()把VNode patch到真实DOM后,执行mounted钩子.注意,这里对mounted钩子函数执行有一个判断逻辑,vm.$vnode如果为null,则表明这不是一次组件的初始化过程,而是我们通过外部 new Vue 初始化过程
 
 ```
 export function mountComponent(
