@@ -155,7 +155,7 @@
 
 > 事件存在,调用updateComponentListeners更新这些方法
 
-### updateComponentListeners方法
+#### updateComponentListeners方法
 
 - listeners 父组件绑定在当前组件上的事件
 - oldListeners 当前组件上旧的事件
