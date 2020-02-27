@@ -11,3 +11,5 @@
 
 ### [Vue update实现](https://github.com/leefinder/vue-analysis-sbs/tree/master/update)
 
+### [keep-alive](https://github.com/leefinder/vue-analysis-sbs/tree/master/keep-alive)
+
