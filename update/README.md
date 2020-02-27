@@ -135,6 +135,8 @@
 - 通过invokeCreateHooks去执行create钩子,并用insertedVnodeQueue缓存vnode
 - 最后调用insert方法,把 DOM 插入到父节点中,因为是递归调用,子元素会优先调用insert
 
+### createElm
+
 ```
     function createElm (
         vnode,
@@ -189,22 +191,22 @@
             // with append="tree".
             const appendAsTree = isDef(data) && isTrue(data.appendAsTree)
             if (!appendAsTree) {
-            if (isDef(data)) {
-                invokeCreateHooks(vnode, insertedVnodeQueue)
-            }
-            insert(parentElm, vnode.elm, refElm)
+                if (isDef(data)) {
+                    invokeCreateHooks(vnode, insertedVnodeQueue)
+                }
+                insert(parentElm, vnode.elm, refElm)
             }
             createChildren(vnode, children, insertedVnodeQueue)
             if (appendAsTree) {
-            if (isDef(data)) {
-                invokeCreateHooks(vnode, insertedVnodeQueue)
-            }
-            insert(parentElm, vnode.elm, refElm)
+                if (isDef(data)) {
+                    invokeCreateHooks(vnode, insertedVnodeQueue)
+                }
+                insert(parentElm, vnode.elm, refElm)
             }
         } else {
             createChildren(vnode, children, insertedVnodeQueue)
             if (isDef(data)) {
-            invokeCreateHooks(vnode, insertedVnodeQueue)
+                invokeCreateHooks(vnode, insertedVnodeQueue)
             }
             insert(parentElm, vnode.elm, refElm)
         }
@@ -213,12 +215,61 @@
             creatingElmInVPre--
         }
         } else if (isTrue(vnode.isComment)) {
-        vnode.elm = nodeOps.createComment(vnode.text)
-        insert(parentElm, vnode.elm, refElm)
+            vnode.elm = nodeOps.createComment(vnode.text)
+            insert(parentElm, vnode.elm, refElm)
         } else {
-        vnode.elm = nodeOps.createTextNode(vnode.text)
-        insert(parentElm, vnode.elm, refElm)
+            vnode.elm = nodeOps.createTextNode(vnode.text)
+            insert(parentElm, vnode.elm, refElm)
         }
     }
 ```
 
+### createChildren
+
+> createChildren就是循环遍历虚拟节点的子节点,递归调用createElm方法
+
+```
+    function createChildren (vnode, children, insertedVnodeQueue) {
+        if (Array.isArray(children)) {
+            if (process.env.NODE_ENV !== 'production') {
+                checkDuplicateKeys(children)
+            }
+            for (let i = 0; i < children.length; ++i) {
+                createElm(children[i], insertedVnodeQueue, vnode.elm, null, true, children, i)
+            }
+        } else if (isPrimitive(vnode.text)) {
+            nodeOps.appendChild(vnode.elm, nodeOps.createTextNode(String(vnode.text)))
+        }
+    }
+```
+
+> invokeCreateHooks循环执行所有的create钩子,并把vnode push到insertedVnodeQueue数组中
+
+```
+    function invokeCreateHooks (vnode, insertedVnodeQueue) {
+        for (let i = 0; i < cbs.create.length; ++i) {
+            cbs.create[i](emptyNode, vnode)
+        }
+        i = vnode.data.hook // Reuse variable
+        if (isDef(i)) {
+            if (isDef(i.create)) i.create(emptyNode, vnode)
+            if (isDef(i.insert)) insertedVnodeQueue.push(vnode)
+        }
+    }
+```
+
+> 把生成的子节点插入到父容器中
+
+```
+    function insert (parent, elm, ref) {
+        if (isDef(parent)) {
+        if (isDef(ref)) {
+            if (nodeOps.parentNode(ref) === parent) {
+                nodeOps.insertBefore(parent, elm, ref)
+            }
+        } else {
+            nodeOps.appendChild(parent, elm)
+        }
+        }
+    }
+```

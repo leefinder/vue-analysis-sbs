@@ -9,3 +9,5 @@
 
 ### [Vue实例$mount](https://github.com/leefinder/vue-analysis-sbs/tree/master/Vue%E5%AE%9E%E4%BE%8B%24mount)
 
+### [Vue update实现](https://github.com/leefinder/vue-analysis-sbs/tree/master/update)
+
