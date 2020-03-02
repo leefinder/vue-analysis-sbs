@@ -1,5 +1,7 @@
 # new Vue 发生了什么
 
+![new Vue 思维导图](./newVue.jpg)
+
 > 实例化Vue后,会执行this._init方法,这个方法通过initMixin封装vue函数的原型
 
 ```
