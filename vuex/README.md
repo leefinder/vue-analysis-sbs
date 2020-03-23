@@ -43,28 +43,28 @@ export default {
 > _installedPlugins来缓存已注册的plugin，防止重复注册，然后去执行plugin的install方法
 
 ```
-export function initUse (Vue: GlobalAPI) {
-  Vue.use = function (plugin: Function | Object) {
-    const installedPlugins = (this._installedPlugins || (this._installedPlugins = []))
-    if (installedPlugins.indexOf(plugin) > -1) {
-      return this
-    }
+    export function initUse (Vue: GlobalAPI) {
+        Vue.use = function (plugin: Function | Object) {
+            const installedPlugins = (this._installedPlugins || (this._installedPlugins = []))
+            if (installedPlugins.indexOf(plugin) > -1) {
+                return this
+            }
 
-    // additional parameters
-    const args = toArray(arguments, 1)
-    args.unshift(this)
-    if (typeof plugin.install === 'function') {
-      plugin.install.apply(plugin, args)
-    } else if (typeof plugin === 'function') {
-      plugin.apply(null, args)
+            // additional parameters
+            const args = toArray(arguments, 1)
+            args.unshift(this)
+            if (typeof plugin.install === 'function') {
+                plugin.install.apply(plugin, args)
+            } else if (typeof plugin === 'function') {
+                plugin.apply(null, args)
+            }
+            installedPlugins.push(plugin)
+            return this
+        }
     }
-    installedPlugins.push(plugin)
-    return this
-  }
-}
 ```
 
-> Vuex也提供了install方法，定义在/src/store.js中
+> Vuex提供了install方法，定义在/src/store.js中
 
 > install方法通过把传入的_Vue赋值给全局的Vue，防止重复注册，Vue在store.js最上面定义了
 
