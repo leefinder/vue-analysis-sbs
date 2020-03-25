@@ -80,7 +80,7 @@
 
         const registerInstance = (vm, callVal) => {
             let i = vm.$options._parentVnode
-            if (isDef(i) && isDef(i = i.data) && isDef(i = i.registerRouteInstance)) {
+            if (isDef(i) && isDef(i = i.data) && isDef(i = i.registerRouteInstance)) { // RouterView 组件内部定义了该方法
                 i(vm, callVal)
             }
         }
@@ -207,13 +207,13 @@
 
 ## createMatcher
 
-> createMatcher实际上是返回了match和addRoutes两个方法
+> createMatcher实际上是返回了match和addRoutes两个方法，match方法会在执行history.transformTo时用到，addRoutes是用来动态配置路由的，方法定义在src/create-matcher.js中
 
 ```
 function createMatcher (routes, router) {
     const { pathList, pathMap, nameMap } = createRouteMap(routes) // 方法定义在src/create-route-map.js中
-    function addRoutes () {
-        createRouteMap(routes, pathList, pathMap, nameMap)
+    function addRoutes (routes) {
+        createRouteMap(routes, pathList, pathMap, nameMap) // routes是新增的动态路由，pathList，pathMap，nameMap是上一次存下来的，闭包的形式获取上一次的路由配置，进行合并
     }
     function match () { ... }
     function redirect () { ... }
@@ -226,9 +226,7 @@ function createMatcher (routes, router) {
 }
 ```
 
-> match
-
-> addRoutes实际上是调用createRouteMap方法,createRouteMap会去遍历我们传入的路由配置调用addRouteRecord，返回pathList，pathMap，nameMap这3个对象
+> addRoutes用来动态配置路由，实际上是调用createRouteMap方法,createRouteMap会去遍历我们传入的路由配置调用addRouteRecord，返回pathList，pathMap，nameMap这3个对象
 
 ```
 /**
@@ -250,7 +248,7 @@ function createRouteMap (routes, oldPathList, oldPathMap, oldNameMap) {
 }
 ```
 
-> addRouteRecord，通过把route配置转化成record对象，维护一个route的树状关系
+> addRouteRecord，递归执行，把route配置转化成record对象，维护一个route的树状关系
 
 > normalizePath拼接一个完整的路由地址，record.path = normalizedPath，如果path的第一个字符是'/'就返回这个path，否则拼接上父路径，如果没有父路径也直接返回，这个path存在pathList数组中；path到record的映射关系存放在pathMap中；vue的路由配置支持name字段配置，这里通过nameMap记录name到record的映射关系
 
@@ -342,5 +340,164 @@ function addRouteRecord (pathList, pathMap, nameMap, route, parent, matchAs) {
         }
     }
 }
+```
+
+## this._router.init
+
+> Vue初始化时如果传入router，会在执行beforeCreate钩子函数时，执行this._router.init，this._router就是传入的router实例
+
+```
+    init (app: any /* Vue component instance */) {
+        process.env.NODE_ENV !== 'production' && assert(
+        install.installed,
+        `not installed. Make sure to call \`Vue.use(VueRouter)\` ` +
+        `before creating root instance.`
+        )
+
+        this.apps.push(app) // app即Vue实例
+
+        // set up app destroyed handler
+        // https://github.com/vuejs/vue-router/issues/2639
+        app.$once('hook:destroyed', () => {
+            // clean out app from this.apps array once destroyed
+            const index = this.apps.indexOf(app)
+            if (index > -1) this.apps.splice(index, 1)
+            // ensure we still have a main app or null if no apps
+            // we do not release the router so it can be reused
+            if (this.app === app) this.app = this.apps[0] || null
+        })
+
+        // main app previously initialized
+        // return as we don't need to set up new history listener
+        if (this.app) {
+            return
+        }
+
+        this.app = app
+
+        const history = this.history
+
+        if (history instanceof HTML5History) {
+            history.transitionTo(history.getCurrentLocation())
+        } else if (history instanceof HashHistory) {
+            const setupHashListener = () => {
+                history.setupListeners()
+            }
+            history.transitionTo(
+                history.getCurrentLocation(),
+                setupHashListener,
+                setupHashListener
+            )
+        }
+
+        history.listen(route => {
+            this.apps.forEach((app) => {
+                app._route = route
+            })
+        })
+    }
+```
+
+> 执行init时传入的app即vue实例，然后通过apps把app存起来，然后拿到history对象，执行history.transtionTo方法，transtionTo方法定义在src\history\base.js文件中
+
+```
+    transitionTo (
+        location: RawLocation,
+        onComplete?: Function,
+        onAbort?: Function
+    ) {
+        const route = this.router.match(location, this.current) // 在VueRouter初始化开始定义的matcher.match方法
+        this.confirmTransition(
+            route,
+            () => {
+                this.updateRoute(route)
+                onComplete && onComplete(route)
+                this.ensureURL()
+
+                // fire ready cbs once
+                if (!this.ready) {
+                this.ready = true
+                this.readyCbs.forEach(cb => {
+                    cb(route)
+                })
+                }
+            },
+            err => {
+                if (onAbort) {
+                onAbort(err)
+                }
+                if (err && !this.ready) {
+                this.ready = true
+                this.readyErrorCbs.forEach(cb => {
+                    cb(err)
+                })
+                }
+            }
+        )
+    }
+```
+
+## match方法
+
+> match方法实际上是调用了createMatcher返回的match
+
+```
+    match (
+        raw: RawLocation,
+        current?: Route,
+        redirectedFrom?: Location
+    ): Route {
+        return this.matcher.match(raw, current, redirectedFrom)
+    } 
+```
+
+> match方法，把传入的raw和currentRoute做处理后返回一个新的路径，会对有name属性和只有path属性的分别处理，有name属性的通过nameMap去获取，没有name的情况下回去遍历pathList，通过匹配regex，path，params创建路径
+
+```
+    function match (
+        raw: RawLocation,
+        currentRoute?: Route,
+        redirectedFrom?: Location
+    ): Route {
+        const location = normalizeLocation(raw, currentRoute, false, router)
+        const { name } = location
+
+        if (name) {
+            const record = nameMap[name] // 从nameMap获取record
+            if (process.env.NODE_ENV !== 'production') {
+                warn(record, `Route with name '${name}' does not exist`)
+            }
+            if (!record) return _createRoute(null, location) // 如果record不存在则返回一个空路径
+            const paramNames = record.regex.keys
+                .filter(key => !key.optional)
+                .map(key => key.name)
+
+            if (typeof location.params !== 'object') {
+                location.params = {}
+            }
+
+            if (currentRoute && typeof currentRoute.params === 'object') {
+                for (const key in currentRoute.params) {
+                    if (!(key in location.params) && paramNames.indexOf(key) > -1) {
+                        location.params[key] = currentRoute.params[key]
+                    }
+                }
+            }
+
+            location.path = fillParams(record.path, location.params, `named route "${name}"`)
+            return _createRoute(record, location, redirectedFrom)
+        } else if (location.path) {
+            location.params = {}
+            for (let i = 0; i < pathList.length; i++) {
+                const path = pathList[i]
+                const record = pathMap[path]
+                if (matchRoute(record.regex, location.path, location.params)) {
+                    return _createRoute(record, location, redirectedFrom)
+                }
+            }
+        }
+        // no match
+        return _createRoute(null, location)
+    }
 ```
 

@@ -17,5 +17,7 @@
 
 ### [keep-alive](https://github.com/leefinder/vue-analysis-sbs/tree/master/keep-alive)
 
+### [vuex](https://github.com/leefinder/vue-analysis-sbs/tree/master/vuex)
 
+### [vue-router](https://github.com/leefinder/vue-analysis-sbs/tree/master/vue-router)
 
