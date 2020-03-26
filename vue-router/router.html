@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <style>
+        *{
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+    <script src="./vue.js"></script>
+    <script src="./vuex.js"></script>
+    <script src="./vue-router.js"></script>
+    <script>
+        const router1 = {
+            template: `<div class="box-tmb">
+                <router-link to="/routerMain/A">routerMain/A</router-link><router-view></router-view>
+            </div>`,
+            beforeRouteEnter (to, from, next) {
+                console.log('/routerMain beforeRouteEnter')
+                next()
+            },
+            beforeRouteUpdate (to, from, next) {
+                console.log('/routerMain beforeRouteUpdate')
+                next()
+            },
+            beforeRouteLeave (to, from, next) {
+                console.log('/routerMain beforeRouteLeave')
+                next()
+            }
+        };
+        const router2 = { 
+            template: `<div class="box-lmr">
+                <router-link to="/B">routerSub/B</router-link><router-view></router-view></div>
+            </div>`,
+            beforeRouteEnter (to, from, next) {
+                console.log('/routerSub beforeRouteEnter')
+                next()
+            },
+            beforeRouteUpdate (to, from, next) {
+                console.log('/routerSub beforeRouteUpdate')
+                next()
+            },
+            beforeRouteLeave (to, from, next) {
+                console.log('/routerSub beforeRouteLeave')
+                next()
+            } 
+        }
+        const router = new VueRouter({
+            routes: [
+                {
+                    path: '/routerMain',
+                    component: router1,
+                    beforeEnter: (to, from, next) => {
+                        console.log('/routerMain beforeEnter')
+                        next()
+                    },
+                    children: [
+                        {
+                            path: 'A',
+                            component: {
+                                template: '<div>AAAAaAAAaAAAaAaA</div>',
+                                beforeRouteEnter (to, from, next) {
+                                    console.log('/routerMain/A beforeRouteEnter')
+                                    next()
+                                },
+                                beforeRouteUpdate (to, from, next) {
+                                    console.log('/routerMain/A beforeRouteUpdate')
+                                    next()
+                                },
+                                beforeRouteLeave (to, from, next) {
+                                    console.log('/routerMain/A beforeRouteLeave')
+                                    next()
+                                },
+                                mounted () {
+                                    console.log(this)
+                                }
+                            },
+                            beforeEnter: (to, from, next) => {
+                                console.log('/routerMain/A beforeEnter')
+                                next()
+                            }
+                        }
+                    ]
+                },
+                {
+                    path: '/routerSub',
+                    component: router2,
+                    beforeEnter: (to, from, next) => {
+                        console.log('/routerSub beforeEnter')
+                        next()
+                    },
+                    children: [
+                        {
+                            path: '/B',
+                            component: {
+                                template: '<div>BBBBBBbbbbbBBBBBB</div>',
+                                beforeRouteEnter (to, from, next) {
+                                    console.log('/routerSub/B beforeRouteEnter')
+                                    next()
+                                },
+                                beforeRouteUpdate (to, from, next) {
+                                    console.log('/routerSub/B beforeRouteUpdate')
+                                    next()
+                                },
+                                beforeRouteLeave (to, from, next) {
+                                    console.log('/routerSub/B beforeRouteLeave')
+                                    next()
+                                },
+                                mounted () {
+                                    console.log(this)
+                                }
+                            },
+                            beforeEnter: (to, from, next) => {
+                                console.log('/routerSub/B beforeEnter')
+                                next()
+                            }
+                        }
+                    ]
+                }               
+            ]
+        })
+        router.beforeEach((to, from, next) => {
+            console.log('beforeEach')
+            next()
+        })
+        router.afterEach((to, from) => {
+            console.log('afterEach')
+        })
+        router.beforeResolve((to, from, next) => {
+            console.log('beforeResolve')
+            next()
+        })
+        const root = new Vue({
+            el: '#app',
+            // store,
+            router,
+            template: '<div>{{a}}<button @click="add">add</button><button @click="del">del</button>'+
+                '<router-link to="/routerMain">routerMain</router-link>' +
+                '<router-link to="/routerSub">routerSub</router-link>' +
+                '<router-view></router-view></div>',
+            data () {
+                return {
+                    a: 'leee',
+                    arr: ['leee1', 'leee2']
+                }
+            },
+            beforeCreate () {},
+            created () {},
+            beforeMount () {},
+            beforeUpdate () {},
+            updated () {},
+            beforeDestroy () {},
+            destroyed () {},
+            activated () {},
+            deactivated () {},
+            errorCaptured () {},
+            methods: {
+                add () {
+                    this.arr.push('leee' + (this.arr.length + 1))
+                },
+                del () {
+                    this.arr.splice(1);
+                }
+            }
+        })
+    </script>
+</body>
+</html>

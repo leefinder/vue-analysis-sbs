@@ -501,3 +501,82 @@ function addRouteRecord (pathList, pathMap, nameMap, route, parent, matchAs) {
     }
 ```
 
+## 路由守卫
+
+> [官网完整的导航解析](https://router.vuejs.org/zh/guide/advanced/navigation-guards.html#%E5%AE%8C%E6%95%B4%E7%9A%84%E5%AF%BC%E8%88%AA%E8%A7%A3%E6%9E%90%E6%B5%81%E7%A8%8B)流程是这么说明的
+
+1. 导航被触发。
+2. 在失活的组件里调用离开守卫。
+3. 调用全局的 beforeEach 守卫。
+4. 在重用的组件里调用 beforeRouteUpdate 守卫 (2.2+)。
+5. 在路由配置里调用 beforeEnter。
+6. 解析异步路由组件。
+7. 在被激活的组件里调用 beforeRouteEnter。
+8. 调用全局的 beforeResolve 守卫 (2.5+)。
+9. 导航被确认。
+10. 调用全局的 afterEach 钩子。
+11. 触发 DOM 更新。
+12. 用创建好的实例调用 beforeRouteEnter 守卫中传给 next 的回调函数。
+
+> 这里我通过例子说明整个流程，在页面初始化的时候，会主动调用一次history.transitionTo，然后执行this.confirmTransition方法，传入新的route，onComplete成功方法，onAbort异常方法，接着去调用isSameRoute比较传入的路由和当前路由是否相同，否则通过resolveQueue方法获取updated，activated，deactivated三个RouteRecord，即更新的路由配置，激活的路由配置，失活的路由配置，方法实现很简单，就是通过去比较当前的matched参数和传入的新的matched参数，因为我们之前matched是通过路由访问的先后顺序传入的，因此只要去获取current和route第一个不同的下标即可
+
+```
+    function resolveQueue (
+        current: Array<RouteRecord>,
+        next: Array<RouteRecord>
+    ): {
+        updated: Array<RouteRecord>,
+        activated: Array<RouteRecord>,
+        deactivated: Array<RouteRecord>
+    } {
+        let i
+        const max = Math.max(current.length, next.length)
+        for (i = 0; i < max; i++) {
+            if (current[i] !== next[i]) {
+            break
+            }
+        }
+        return {
+            updated: next.slice(0, i),
+            activated: next.slice(i),
+            deactivated: current.slice(i)
+        }
+    }
+```
+
+> 把路由守卫钩子存到queue队列中，顺序是失活组件beforeRouteLeave钩子，beforeEach全局钩子，组件的beforeRouteUpdate钩子，待激活组件的路由配置beforeEnter钩子，待激活的异步组件，然后执行runQueue函数，runQueue函数的第一个参数就是传入的钩子，第二个参数是iterator迭代器方法，第三个参数是成功后的回调函数,回调中又执行了一次runQueue，这次传入的是待激活组件的beforeRouteEnter钩子，beforeResolve钩子,最后执行onComplete去调用this.updateRoute(route)，执行afterEach全局钩子，这个钩子不需要传next，执行this.cb回调，this.cb回调我们在_init时通过history.listen注册保存在cb数组中，这里会执行路由更新，然后执行beforeRouteEnter中next方法
+
+```
+    runQueue(queue, iterator, () => {
+        const postEnterCbs = []
+        const isValid = () => this.current === route
+        // wait until async components are resolved before
+        // extracting in-component enter guards
+        const enterGuards = extractEnterGuards(activated, postEnterCbs, isValid)
+        const queue = enterGuards.concat(this.router.resolveHooks)
+        runQueue(queue, iterator, () => {
+            if (this.pending !== route) {
+            return abort()
+            }
+            this.pending = null
+            onComplete(route)
+            if (this.router.app) {
+            this.router.app.$nextTick(() => {
+                postEnterCbs.forEach(cb => {
+                    cb()
+                })
+            })
+            }
+        })
+    })
+
+    updateRoute (route: Route) {
+        const prev = this.current
+        this.current = route
+        this.cb && this.cb(route)
+        this.router.afterHooks.forEach(hook => {
+            hook && hook(route, prev)
+        })
+    }
+```
+
