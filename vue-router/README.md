@@ -580,3 +580,273 @@ function addRouteRecord (pathList, pathMap, nameMap, route, parent, matchAs) {
     }
 ```
 
+> 我们看一下runQueue方法的实现，第一个参数就是传入的钩子，第二个参数是iterator迭代器方法，第三个参数是成功后的回调函数，定义在src/util/async.js中
+
+```
+    export function runQueue (queue: Array<?NavigationGuard>, fn: Function, cb: Function) {
+        const step = index => {
+            if (index >= queue.length) {
+            cb()
+            } else {
+            if (queue[index]) {
+                fn(queue[index], () => {
+                    step(index + 1)
+                })
+            } else {
+                step(index + 1)
+            }
+            }
+        }
+        step(0)
+    }
+```
+
+> iterator函数，接收第一个参数就是钩子函数，第二个参数next就是runQueue函数里面回调的step，即下一个钩子函数
+
+```
+    const iterator = (hook: NavigationGuard, next) => {
+        if (this.pending !== route) {
+            return abort()
+        }
+        try {
+            hook(route, current, (to: any) => {
+                if (to === false || isError(to)) {
+                    // next(false) -> abort navigation, ensure current URL
+                    this.ensureURL(true)
+                    abort(to)
+                } else if (
+                    typeof to === 'string' ||
+                    (typeof to === 'object' &&
+                    (typeof to.path === 'string' || typeof to.name === 'string'))
+                ) {
+                    // next('/') or next({ path: '/' }) -> redirect
+                    abort()
+                    if (typeof to === 'object' && to.replace) {
+                        this.replace(to)
+                    } else {
+                        this.push(to)
+                    }
+                } else {
+                    // confirm transition and pass on the value
+                    next(to)
+                }
+            })
+        } catch (e) {
+            abort(e)
+        }
+    }
+```
+
+## router-view函数式组件
+
+> router-view是内部实现了render函数，接收4个参数props，children，parent，data
+
+- props 参考[vue-router路由组件传参](https://router.vuejs.org/zh/guide/essentials/passing-props.html)
+
+- children VNode类型
+
+- 父组件实例
+
+- data VNodeData 从createElement中传入的组件参数
+
+> 回顾下createElement，函数式组件通过options.functional判断调用createFunctionalComponent
+
+```
+    export function createComponent (
+        Ctor: Class<Component> | Function | Object | void,
+        data: ?VNodeData,
+        context: Component,
+        children: ?Array<VNode>,
+        tag?: string
+    ): VNode | Array<VNode> | void {
+        if (isUndef(Ctor)) {
+            return
+        }
+
+        const baseCtor = context.$options._base
+
+        // plain options object: turn it into a constructor
+        if (isObject(Ctor)) {
+            Ctor = baseCtor.extend(Ctor)
+        }
+
+        // if at this stage it's not a constructor or an async component factory,
+        // reject.
+        if (typeof Ctor !== 'function') {
+            if (process.env.NODE_ENV !== 'production') {
+                warn(`Invalid Component definition: ${String(Ctor)}`, context)
+            }
+            return
+        }
+
+        // async component
+        ...
+
+        data = data || {}
+
+        // resolve constructor options in case global mixins are applied after
+        // component constructor creation
+        resolveConstructorOptions(Ctor)
+
+        // transform component v-model data into props & events
+        ...
+
+        // extract props
+        const propsData = extractPropsFromVNodeData(data, Ctor, tag)
+
+        // functional component
+        if (isTrue(Ctor.options.functional)) {
+            return createFunctionalComponent(Ctor, propsData, data, context, children)
+        }
+        ...
+    }
+```
+
+> createFunctionalComponent，主要是对传入的propsData和data做了一层校验合并，然后调用FunctionalRenderContext生成renderContext，最后执行函数组件的render方法，该方法定义在src/core/vdom/create-functional-component.js中
+
+```
+    export function createFunctionalComponent (
+        Ctor: Class<Component>,
+        propsData: ?Object,
+        data: VNodeData,
+        contextVm: Component,
+        children: ?Array<VNode>
+    ): VNode | Array<VNode> | void {
+        const options = Ctor.options
+        const props = {}
+        const propOptions = options.props
+        if (isDef(propOptions)) {
+            for (const key in propOptions) {
+                props[key] = validateProp(key, propOptions, propsData || emptyObject)
+            }
+        } else {
+            if (isDef(data.attrs)) mergeProps(props, data.attrs)
+            if (isDef(data.props)) mergeProps(props, data.props)
+        }
+
+        const renderContext = new FunctionalRenderContext(
+            data,
+            props,
+            children,
+            contextVm,
+            Ctor
+        )
+
+        const vnode = options.render.call(null, renderContext._c, renderContext)
+
+        if (vnode instanceof VNode) {
+            return cloneAndMarkFunctionalResult(vnode, data, renderContext.parent, options, renderContext)
+        } else if (Array.isArray(vnode)) {
+            const vnodes = normalizeChildren(vnode) || []
+            const res = new Array(vnodes.length)
+            for (let i = 0; i < vnodes.length; i++) {
+                res[i] = cloneAndMarkFunctionalResult(vnodes[i], data, renderContext.parent, options, renderContext)
+            }
+            return res
+        }
+    }
+```
+
+> router-view的render实现，通过while循环向上找，直到Vue根实例，parent._routerRoot表示Vue根实例，当匹配到parent也是router-view时，depth自增，通过depth层级找到matched匹配的RouteRecord，渲染当前组件
+
+```
+    render (_, { props, children, parent, data }) {
+        // used by devtools to display a router-view badge
+        data.routerView = true
+
+        // directly use parent context's createElement() function
+        // so that components rendered by router-view can resolve named slots
+        const h = parent.$createElement // 拿到父组件的$createElement方法，其实我觉得通过传入的第一个参数_就可以了
+        const name = props.name // 命名视图
+        // 当前的route对象，实际上是访问_route,我们在beforeCreate时通过 Object.defineProperty将$route代理了this._routerRoot._route
+        const route = parent.$route 
+        const cache = parent._routerViewCache || (parent._routerViewCache = {}) // 路由缓存
+
+        // determine current view depth, also check to see if the tree
+        // has been toggled inactive but kept-alive.
+        let depth = 0 // 层级，用于获取当前渲染在哪个route-view中
+        let inactive = false
+        while (parent && parent._routerRoot !== parent) { // parent._routerRoot是Vue的根实例，通过获取parent的层级，获取嵌套router-view的渲染位置
+            const vnodeData = parent.$vnode ? parent.$vnode.data : {}
+            if (vnodeData.routerView) {
+                depth++
+            }
+            if (vnodeData.keepAlive && parent._directInactive && parent._inactive) {
+                inactive = true
+            }
+            parent = parent.$parent
+        }
+        data.routerViewDepth = depth
+
+        // render previous view if the tree is inactive and kept-alive
+        if (inactive) {
+            const cachedData = cache[name] // 获取缓存的路由组件
+            const cachedComponent = cachedData && cachedData.component
+            if (cachedComponent) {
+                // #2301
+                // pass props
+                if (cachedData.configProps) {
+                    fillPropsinData(cachedComponent, data, cachedData.route, cachedData.configProps)
+                }
+                return h(cachedComponent, data, children)
+            } else {
+                // render previous empty view
+                return h()
+            }
+        }
+
+        const matched = route.matched[depth] // 通过depth层级获取当前的RouteRecord
+        const component = matched && matched.components[name]
+
+        // render empty node if no matched route or no config component
+        if (!matched || !component) {
+            cache[name] = null
+            return h()
+        }
+
+        // cache component
+        cache[name] = { component }
+
+        // attach instance registration hook
+        // this will be called in the instance's injected lifecycle hooks
+        data.registerRouteInstance = (vm, val) => { // 在这里定义registerRouteInstance，然后会在beforeCreate中调用到该方法
+            // val could be undefined for unregistration
+            const current = matched.instances[name] // 命名视图，默认是default
+            if (
+                (val && current !== vm) ||
+                (!val && current === vm)
+            ) {
+                matched.instances[name] = val // 当前组件实例
+            }
+        }
+
+        // also register instance in prepatch hook
+        // in case the same component instance is reused across different routes
+        ;(data.hook || (data.hook = {})).prepatch = (_, vnode) => {
+            matched.instances[name] = vnode.componentInstance
+        }
+
+        // register instance in init hook
+        // in case kept-alive component be actived when routes changed
+        data.hook.init = (vnode) => {
+            if (vnode.data.keepAlive &&
+                vnode.componentInstance &&
+                vnode.componentInstance !== matched.instances[name]
+            ) {
+                matched.instances[name] = vnode.componentInstance
+            }
+        }
+
+        const configProps = matched.props && matched.props[name]
+        // save route and configProps in cachce
+        if (configProps) {
+            extend(cache[name], {
+                route,
+                configProps
+            })
+            fillPropsinData(component, data, route, configProps)
+        }
+
+        return h(component, data, children)
+    }
+```
