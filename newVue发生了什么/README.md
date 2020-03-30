@@ -23,11 +23,11 @@
     this._init(options)
     }
 
-    initMixin(Vue)
-    stateMixin(Vue)
-    eventsMixin(Vue)
-    lifecycleMixin(Vue)
-    renderMixin(Vue)
+    initMixin(Vue) // 给Vue原型注册_init方法
+    stateMixin(Vue) // Vue原型注册$data，$props，$set：新增响应式数据，$delete：删除响应式数据，$watch：新增用户watcher
+    eventsMixin(Vue) // Vue原型注册事件中心，$on，$once，$off，$emit
+    lifecycleMixin(Vue) // Vue原型添加_update方法，$forceUpdate方法，$destory方法
+    renderMixin(Vue) // Vue原型添加$nextTick方法，_render方法
 
     export default Vue
 ```
@@ -48,14 +48,14 @@
 // 代码在/core/instance/init.js中
 // expose real self
     vm._self = vm
-    initLifecycle(vm)
-    initEvents(vm)
-    initRender(vm)
-    callHook(vm, 'beforeCreate')
+    initLifecycle(vm) // 添加组件生命周期变量，建立父子关系
+    initEvents(vm) 
+    initRender(vm) // 注册$createElement方法
+    callHook(vm, 'beforeCreate') // 执行beforeCreate钩子函数
     initInjections(vm) // resolve injections before data/props
-    initState(vm)
+    initState(vm) // 初始化props，data，computed，methods等
     initProvide(vm) // resolve provide after data/props
-    callHook(vm, 'created')
+    callHook(vm, 'created') // 执行created钩子函数
 
 /* istanbul ignore if */
     if (process.env.NODE_ENV !== 'production' && config.performance && mark) {
@@ -82,10 +82,10 @@
 // locate first non-abstract parent
     let parent = options.parent
     if (parent && !options.abstract) {
-        while (parent.$options.abstract && parent.$parent) {
-        parent = parent.$parent
+        while (parent.$options.abstract && parent.$parent) { // 如果父组件不是抽象组件，并且存在$parent，直到找到这个父实例
+            parent = parent.$parent
         }
-        parent.$children.push(vm)
+        parent.$children.push(vm) // 往这个父实例push自身
     }
 ```
 
@@ -100,16 +100,16 @@
 
 ```
     vm.$parent = parent
-    vm.$root = parent ? parent.$root : vm
+    vm.$root = parent ? parent.$root : vm // 找到根节点
 
-    vm.$children = []
-    vm.$refs = {}
+    vm.$children = [] // 创建子组件队列
+    vm.$refs = {} // 通过ref注册的所有子组件
     vm._watcher = null
-    vm._inactive = null
-    vm._directInactive = false
-    vm._isMounted = false
-    vm._isDestroyed = false
-    vm._isBeingDestroyed = false
+    vm._inactive = null // keep-alive时用到是否active
+    vm._directInactive = false // 使用keep-alive的状态参数
+    vm._isMounted = false // mounted之后状态修改成true
+    vm._isDestroyed = false // 组件distory前，将_isDestoryed状态改为true
+    vm._isBeingDestroyed = false // 调用distory时该状态修改成true，防止重复调用$destory
 ```
 | 名称 | 说明 |
 | ---- | ---- |
