@@ -16,20 +16,20 @@
 > initGlobalAPI,代码定义在src/core/global-api/...
 
 ```
-    Vue.options = Object.create(null)
-    ASSET_TYPES.forEach(type => {
+    Vue.options = Object.create(null) // 初始化options对象
+    ASSET_TYPES.forEach(type => { // 全局的 component directive filter
         Vue.options[type + 's'] = Object.create(null)
     })
 
     // this is used to identify the "base" constructor to extend all plain-object
     // components with in Weex's multi-instance scenarios.
-    Vue.options._base = Vue
+    Vue.options._base = Vue // 把 Vue缓存到options._base
 
-    extend(Vue.options.components, builtInComponents)
+    extend(Vue.options.components, builtInComponents) // 这里就只有keep-alive静态组件
 
-    initUse(Vue)
-    initMixin(Vue)
-    initExtend(Vue)
+    initUse(Vue) // 注册Vue.use
+    initMixin(Vue) // 注册Vue.mixin 其实就是mergeOptions方法
+    initExtend(Vue) // 注册Vue.extend
     initAssetRegisters(Vue)
 
 ```
@@ -268,6 +268,14 @@ strats.data = function (
 
 > 我们知道Vue实例可以通过new Vue构造函数实现,也可以通过Vue.extend方法构造一个子类,实现方法继承,super指向父类,Vue.extend我们在createElement中提到过
 
+```
+    Vue.extend = function (extendOptions: Object): Function {
+        ...
+        Sub['super'] = Super
+        ...
+    }
+```
+
 > 首先递归调用resolveConstructorOptions方法,返回"父类"上的options并赋值给superOptions变量.然后把"自身"的options赋值给cachedSuperOptions变量
 
 [createComponent参考链接](https://github.com/leefinder/vue-analysis-sbs/tree/master/createComponent)
@@ -275,15 +283,16 @@ strats.data = function (
 ```
 export function resolveConstructorOptions(Ctor: Class<Component>) {
     let options = Ctor.options
+    // 如果能获取到super属性，说明Ctor是通过Vue.extend构建的子类，没有super则直接返回
     if (Ctor.super) {
-        const superOptions = resolveConstructorOptions(Ctor.super)
+        const superOptions = resolveConstructorOptions(Ctor.super) // 递归获取父类上的options
         const cachedSuperOptions = Ctor.superOptions
         if (superOptions !== cachedSuperOptions) {
             // super option changed,
             // need to resolve new options.
             Ctor.superOptions = superOptions
             // check if there are any late-modified/attached options (#4976)
-            const modifiedOptions = resolveModifiedOptions(Ctor)
+            const modifiedOptions = resolveModifiedOptions(Ctor) // Ctor.sealedOptions 和 Ctor.options 作比较 把更改过得options取出来
             // update base extend options
             if (modifiedOptions) {
                 extend(Ctor.extendOptions, modifiedOptions)
