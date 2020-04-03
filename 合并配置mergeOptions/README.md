@@ -13,11 +13,11 @@
 
 ## initGlobalAPI
 
-> initGlobalAPI,代码定义在src/core/global-api/...
+> initGlobalAPI,这里用_base缓存了Vue,这个我们在讲createComponent是提到过vm.$options._base,就是在这里定义的,Vue.options = Object.create(null),通过创建空对象,初始化options配置,挂上components,directives,filters等,代码定义在src/core/global-api/...
 
 ```
     Vue.options = Object.create(null) // 初始化options对象
-    ASSET_TYPES.forEach(type => { // 全局的 component directive filter
+    ASSET_TYPES.forEach(type => { // 全局的 component directive filter初始化
         Vue.options[type + 's'] = Object.create(null)
     })
 
@@ -30,14 +30,13 @@
     initUse(Vue) // 注册Vue.use
     initMixin(Vue) // 注册Vue.mixin 其实就是mergeOptions方法
     initExtend(Vue) // 注册Vue.extend
-    initAssetRegisters(Vue)
+    initAssetRegisters(Vue) // 注册全局 Vue.component Vue.filter Vue.directive方法
 
 ```
-> 这里用_base缓存了Vue,这个我们在讲createComponent是提到过vm.$options._base,就是在这里定义的
-
-> Vue.options = Object.create(null),通过创建空对象,初始化options配置,挂上components,directives,filters等
 
 ## mergeOptions
+
+> mergeOptions主要是对parent和child根据合并策略返回新的对象,通过递归调用把extends和mixins合并到parent上,然后遍历parent执行mergeField,再遍历child,如果发现新的key，parent上不存在的则调用mergeField.这里定义了strats就是Vue的全局策略对象
 
 ```
 export function mergeOptions(
@@ -53,15 +52,11 @@ export function mergeOptions(
         child = child.options
     }
 
-    normalizeProps(child, vm)
+    normalizeProps(child, vm) // 传入的props可以为数组，也可以为对象，这里把这两种类型统一处理成 key-val的对象
     normalizeInject(child, vm)
-    normalizeDirectives(child)
+    normalizeDirectives(child) // 把传入的directives 转成 { bind: def, update: def } 的形式
 
-    // Apply extends and mixins on the child options,
-    // but only if it is a raw options object that isn't
-    // the result of another mergeOptions call.
-    // Only merged options has the _base property.
-    if (!child._base) {
+    if (!child._base) { // 递归调用mergeOptions把extends 和 mixins 合并到parent上
         if (child.extends) {
             parent = mergeOptions(parent, child.extends, vm)
         }
@@ -78,18 +73,17 @@ export function mergeOptions(
         mergeField(key)
     }
     for (key in child) {
-        if (!hasOwn(parent, key)) {
+        if (!hasOwn(parent, key)) { // 不存在parent上的属性调用mergeField合并
             mergeField(key)
         }
     }
     function mergeField(key) {
-        const strat = strats[key] || defaultStrat
+        const strat = strats[key] || defaultStrat // 策略模式的应用
         options[key] = strat(parent[key], child[key], vm, key)
     }
     return options
 }
 ```
-> 遍历parent,调用mergeField,然后再遍历child,如果key不在parent的自身属性上,则调用mergeField
 
 ## lifecycle生命周期钩子定义
 
@@ -212,11 +206,6 @@ export function mergeDataOrFn(
         if (!parentVal) {
             return childVal
         }
-        // when parentVal & childVal are both present,
-        // we need to return a function that returns the
-        // merged result of both functions... no need to
-        // check if parentVal is a function here because
-        // it has to be a function to pass previous merges.
         return function mergedDataFn() {
             return mergeData(
                 typeof childVal === 'function' ? childVal.call(this, this) : childVal,
