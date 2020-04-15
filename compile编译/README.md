@@ -3,24 +3,28 @@
 > vue的编译，我们从vue的runtime版本中过一下，我么在平时开发过程中，编译过程都通过vue-loader给我们提前处理了，runtime版本的vue的编译代码定义在src/platforms/web/entry-runtime-with-compiler.js中，runtime的$mount实现是通过获取$options上定义的render函数，如果没有定义，则获取template，然后执行compileToFunctions方法，传入template和配置参数，返回一个render函数，compileToFunctions定义在src/platforms/web/compiler/index.js中，最后执行mount方法，mount方法是我们在Vue原型上定义的$mount，而原型上的$mount方法定义在src/platforms/web/runtime/index.js中，实际上执行$mount是调用了mountComponent方法，方法定义在src/core/instance/lifecycle.js中
 
 ```
-    const mount = Vue.prototype.$mount // 浏览器端$mount 定义在src/platforms/web/runtime/index.js
+    // 浏览器端$mount 定义在src/platforms/web/runtime/index.js
+    const mount = Vue.prototype.$mount 
     Vue.prototype.$mount = function (
         el?: string | Element,
         hydrating?: boolean
     ): Component {
-        el = el && query(el) // 获取传入的根节点
+        // 获取传入的根节点
+        el = el && query(el)
 
         /* istanbul ignore if */
-        if (el === document.body || el === document.documentElement) { // 如果根节点定义在body上或者html根节点上则在开发环境报错提示
+        // 如果根节点定义在body上或者html根节点上则在开发环境报错提示
+        if (el === document.body || el === document.documentElement) { 
             process.env.NODE_ENV !== 'production' && warn(
             `Do not mount Vue to <html> or <body> - mount to normal elements instead.`
             )
             return this
         }
-
-        const options = this.$options // 获取合并配置后的$options
+        // 获取合并配置后的$options
+        const options = this.$options 
         // resolve template/el and convert to render function
-        if (!options.render) { // 如果没有定义render方法，就去获取定义的template字段
+        // 如果没有定义render方法，就去获取定义的template字段
+        if (!options.render) { 
             let template = options.template
             // 如果template存在，对其做类型处理
             if (template) {
@@ -69,7 +73,8 @@
                 }
             }
         }
-        return mount.call(this, el, hydrating) // 执行vue原型上的$mount
+        // 执行vue原型上的$mount
+        return mount.call(this, el, hydrating) 
     }
 ```
 
@@ -84,61 +89,8 @@
                 template: string,
                 options?: CompilerOptions
             ): CompiledResult {
-                const finalOptions = Object.create(baseOptions)
-                const errors = []
-                const tips = []
-
-                let warn = (msg, range, tip) => {
-                    (tip ? tips : errors).push(msg)
-                }
-
-            if (options) {
-                if (process.env.NODE_ENV !== 'production' && options.outputSourceRange) {
-                    // $flow-disable-line
-                    const leadingSpaceLength = template.match(/^\s*/)[0].length
-
-                    warn = (msg, range, tip) => {
-                        const data: WarningMessage = { msg }
-                        if (range) {
-                            if (range.start != null) {
-                                data.start = range.start + leadingSpaceLength
-                            }
-                            if (range.end != null) {
-                                data.end = range.end + leadingSpaceLength
-                            }
-                        }
-                        (tip ? tips : errors).push(data)
-                    }
-                }
-                // merge custom modules
-                if (options.modules) {
-                    finalOptions.modules =
-                        (baseOptions.modules || []).concat(options.modules)
-                    }
-                    // merge custom directives
-                    if (options.directives) {
-                        finalOptions.directives = extend(
-                            Object.create(baseOptions.directives || null),
-                            options.directives
-                        )
-                    }
-                    // copy other options
-                    for (const key in options) {
-                        if (key !== 'modules' && key !== 'directives') {
-                            finalOptions[key] = options[key]
-                        }
-                    }
-                }
-
-                finalOptions.warn = warn
-
-                const compiled = baseCompile(template.trim(), finalOptions)
-                if (process.env.NODE_ENV !== 'production') {
-                    detectErrors(compiled.ast, warn)
-                }
-                compiled.errors = errors
-                compiled.tips = tips
-                return compiled
+                ...
+                ...
             }
 
             return {
@@ -150,7 +102,7 @@
 
 ```
 
-> createCompileToFunctionFn，创建cache缓存编译节点，因为编译是特别耗时的，所有这里通过缓存优化编译过程；通过new Function('return 1')，判断当前环境支不支持new Function来构建方法，尝试获取缓存，如果没有执行compile方法得到compiled，接着对错误信息，提示信息做一层处理，然后通过createFunction生成render函数
+> createCompileToFunctionFn，创建cache缓存编译节点，因为编译是特别耗时的，这里通过缓存优化编译过程；通过new Function('return 1')，判断当前环境支不支持new Function来构建方法，尝试获取缓存，最后执行compile方法得到compiled，compile是在上一个函数createCompiler中当做参数传入的
 
 ```
     export function createCompileToFunctionFn (compile: Function): Function {
@@ -247,4 +199,79 @@
             return (cache[key] = res)
         }
     }
+```
+
+> 回过头来看createCompiler中声明的当做参数传入的compile，compile会处理传入的配置参数options（对平台相关的编译配置和自定义的配置做合并），做最后执行baseCompile
+
+```
+function compile (
+    template: string,
+    options?: CompilerOptions
+): CompiledResult {
+    // 传入的web平台编译的相关配置 vue\src\platforms\web\compiler\options.js
+    const finalOptions = Object.create(baseOptions)
+    const errors = []
+    const tips = []
+
+    let warn = (msg, range, tip) => {
+        (tip ? tips : errors).push(msg)
+    }
+
+if (options) {
+    if (process.env.NODE_ENV !== 'production' && options.outputSourceRange) {
+        // dev环境的提示忽略先
+        ...
+    }
+    // merge custom modules
+    // 合并自定义配置
+    if (options.modules) {
+        finalOptions.modules =
+            (baseOptions.modules || []).concat(options.modules)
+        }
+        // merge custom directives
+        if (options.directives) {
+            finalOptions.directives = extend(
+                Object.create(baseOptions.directives || null),
+                options.directives
+            )
+        }
+        // copy other options
+        for (const key in options) {
+            if (key !== 'modules' && key !== 'directives') {
+                finalOptions[key] = options[key]
+            }
+        }
+    }
+
+    finalOptions.warn = warn
+    // 传入模板字符串 最后的编译配置 执行编译
+    const compiled = baseCompile(template.trim(), finalOptions)
+    if (process.env.NODE_ENV !== 'production') {
+        detectErrors(compiled.ast, warn)
+    }
+    compiled.errors = errors
+    compiled.tips = tips
+    return compiled
+}
+```
+
+> baseCompile 在执行 createCompilerCreator 方法时作为参数传入，真正的编译过程parse->optimize->generate，parse解析模板字符串生成ast，通过optimize优化处理ast树，把ast和编译配置传入generate生成code，返回render函数
+
+```
+// \vue\src\compiler\index.js
+const createCompiler = createCompilerCreator(function baseCompile (
+    template: string,
+    options: CompilerOptions
+    ): CompiledResult {
+        const ast = parse(template.trim(), options)
+        if (options.optimize !== false) {
+            optimize(ast, options)
+        }
+        const code = generate(ast, options)
+        return {
+            ast,
+            render: code.render,
+            staticRenderFns: code.staticRenderFns
+        }
+    })
 ```
