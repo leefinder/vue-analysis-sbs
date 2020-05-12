@@ -21,8 +21,9 @@
 
 ```
 // src/platform/web/entry-runtime-with-compiler.js
-
+    // 缓存原型上的$mount方法
     const mount = Vue.prototype.$mount
+    // 重写$mount 第一个参数表示挂载的dom元素，第二个是服务端渲染的配置
     Vue.prototype.$mount = function (
         el?: string | Element,
         hydrating?: boolean
@@ -37,9 +38,10 @@
             )
             return this
         }
-
+        // 把合并配置后的$options赋值给options
         const options = this.$options
         // resolve template/el and convert to render function
+        // 判断组件是否定义了render函数，如果没有定义则去获取定义的模版template
         if (!options.render) {
             // 没有render方法时尝试获取template
             let template = options.template
@@ -73,7 +75,8 @@
                 if (process.env.NODE_ENV !== 'production' && config.performance && mark) {
                     mark('compile')
                 }
-
+                // 获取到的模版字符串传入compile中执行parse optimize generate 返回render函数
+                // compileToFunctions接收2个参数 模版字符串 用户定一个编译配置
                 const { render, staticRenderFns } = compileToFunctions(template, {
                     outputSourceRange: process.env.NODE_ENV !== 'production',
                     shouldDecodeNewlines,
@@ -116,11 +119,11 @@
 
 ## mountComponent方法
 
-1. 如果options上没有render方法,就创建空的VNode
-2. 执行beforeMount钩子
-3. 定义updateComponent方法,实际上是调用vm._update去触发更新
-4. 实例化一个渲染Watcher,用来监听更新,在before钩子中添加了beforeUpdate钩子函数,在组件生成后,销毁前会去执行beforeUpdate钩子
-5. vm._update()把VNode patch到真实DOM后,执行mounted钩子.注意,这里对mounted钩子函数执行有一个判断逻辑,vm.$vnode如果为null,则表明这不是一次组件的初始化过程,而是我们通过外部 new Vue 初始化过程
+- 如果options上没有render方法,就创建空的VNode
+- 执行beforeMount钩子
+- 定义updateComponent方法,实际上是调用vm._update去触发更新
+- 实例化一个渲染Watcher,在回调中执行updateComponent，在这个方法中调用vm._render生成虚拟dom，该方法在这里可以用来监听更新,在before钩子中添加了beforeUpdate钩子函数,在组件生成后,销毁前会去执行beforeUpdate钩子
+- vm._update()把VNode patch到真实DOM后,执行mounted钩子.注意,这里对mounted钩子函数执行有一个判断逻辑,vm.$vnode如果为null,则表明这不是一次组件的初始化过程,而是我们通过外部 new Vue 初始化过程
 
 ```
 export function mountComponent(
