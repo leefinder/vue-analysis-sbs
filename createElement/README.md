@@ -25,6 +25,7 @@
         normalizationType: any,
         alwaysNormalize: boolean
         ): VNode | Array<VNode> {
+            // 参数不一致时， 往前移一位 
         if (Array.isArray(data) || isPrimitive(data)) {
             normalizationType = children
             children = data
@@ -82,8 +83,7 @@
 
 ### simpleNormalizeChildren
 
-> 主要完成的功能是将children类数组的第一层转换为一个一维数组,当children中包含组件是,函数式组件可能会返回一个数组而不是单独的根节点.因此,当child是数组时,我们
-把整个数组利用Array.prototype.concat进行一次抹平.这里只进行1层抹平,函数式组件已经规范化了自己的子组件
+> 主要完成的功能是将children类数组的第一层转换为一个一维数组,当children中包含组件时,函数式组件可能会返回一个数组而不是单独的根节点.因此,当child是数组时,我们把整个数组利用Array.prototype.concat进行一次抹平.这里只进行1层抹平,函数式组件已经规范化了自己的子组件
 
 ```
 // 1. When the children contains components - because a functional component
@@ -103,27 +103,61 @@
 
 ### normalizeChildren
 
-> 当子级包含始嵌套数组,template,slot,v-for,手写的render函数,判断children中的元素是不是数组,如果是的话,就递归调用数组,并将每个元素保存在数组中返回
+> 判断children是否基础类型，如果是返回文本节点；如果是数组类型，执行normalizeArrayChildren，遍历传入的children，继续判断是否数组，如果是递归执行normalizeArrayChildren
 
 ```
 // 2. When the children contains constructs that always generated nested Arrays,
 // e.g. <template>, <slot>, v-for, or when the children is provided by user
 // with hand-written render functions / JSX. In such cases a full normalization
 // is needed to cater to all possible types of children values.
+
     export function normalizeChildren (children: any): ?Array<VNode> {
-        return isPrimitive(children)
-            ? [createTextVNode(children)]
+        // 判断基础类型 string number boolean symbol
+        return isPrimitive(children) 
+        // 创建文本节点
+            ? [createTextVNode(children)] 
             : Array.isArray(children)
-            ? normalizeArrayChildren(children)
+        // 遍历children，判断children[i]，如果是数组类型递归执行normalizeArrayChildren，判断基础类型创建文本节点，返回res数组
+            ? normalizeArrayChildren(children) 
             : undefined
     }
 ```
 
-## createComponent
-
-> 如果标签(tag)不是字符串,则创建组件VNode,代码在src/core/vdom/create-component.js中
-
 ```
-    vnode = createComponent(Ctor, data, context, children, tag)
+    // 判断传入的tag是string类型 创建一个普通的html节点
+    if (typeof tag === 'string') {
+        let Ctor
+        ns = (context.$vnode && context.$vnode.ns) || config.getTagNamespace(tag)
+        if (config.isReservedTag(tag)) {
+            // platform built-in elements
+            if (process.env.NODE_ENV !== 'production' && isDef(data) && isDef(data.nativeOn)) {
+                warn(
+                `The .native modifier for v-on is only valid on components but it was used on <${tag}>.`,
+                context
+                )
+            }
+            // 创建普通的html节点
+            vnode = new VNode(
+                config.parsePlatformTagName(tag), data, children,
+                undefined, undefined, context
+            )
+        } else if ((!data || !data.pre) && isDef(Ctor = resolveAsset(context.$options, 'components', tag))) {
+            // component 如果是组件节点，调用createComponent
+            vnode = createComponent(Ctor, data, context, children, tag)
+        } else {
+            // unknown or unlisted namespaced elements
+            // check at runtime because it may get assigned a namespace when its
+            // parent normalizes children
+            // 其他的自定义节点
+            vnode = new VNode(
+                tag, data, children,
+                undefined, undefined, context
+            )
+        }
+  } else {
+    // direct component options / constructor
+    vnode = createComponent(tag, data, context, children)
+  }
 ```
+
 

@@ -27,9 +27,10 @@
         el?: string | Element,
         hydrating?: boolean
     ): Component {
+        // 获取el，通过document.querySelector获取根节点
         el = el && query(el)
 
-        /* istanbul ignore if */
+        // 根节点不能是body或者html
         if (el === document.body || el === document.documentElement) {
             process.env.NODE_ENV !== 'production' && warn(
             `Do not mount Vue to <html> or <body> - mount to normal elements instead.`
@@ -40,6 +41,7 @@
         const options = this.$options
         // resolve template/el and convert to render function
         if (!options.render) {
+            // 没有render方法时尝试获取template
             let template = options.template
             if (template) {
                 if (typeof template === 'string') {
@@ -53,17 +55,19 @@
                         )
                     }
                 }
-            } else if (template.nodeType) {
-                template = template.innerHTML
-            } else {
-                if (process.env.NODE_ENV !== 'production') {
-                warn('invalid template option:' + template, this)
+                } else if (template.nodeType) {
+                    template = template.innerHTML
+                } else {
+                    if (process.env.NODE_ENV !== 'production') {
+                    warn('invalid template option:' + template, this)
+                    }
+                    return this
                 }
-                return this
-            }
+            // 没有template定义，尝试获取根节点的html内容
             } else if (el) {
                 template = getOuterHTML(el)
             }
+            // 获取到template后 通过compileToFunctions生成render函数
             if (template) {
                 /* istanbul ignore if */
                 if (process.env.NODE_ENV !== 'production' && config.performance && mark) {
@@ -81,12 +85,14 @@
                 options.staticRenderFns = staticRenderFns
 
                 /* istanbul ignore if */
+                // vue开发环境的性能检测
                 if (process.env.NODE_ENV !== 'production' && config.performance && mark) {
                     mark('compile end')
                     measure(`vue ${this._name} compile`, 'compile', 'compile end')
                 }
             }
         }
+        // 执行原型$mount
         return mount.call(this, el, hydrating)
     }
 ```
@@ -170,9 +176,7 @@ export function mountComponent(
         }
     }
 
-    // we set this to vm._watcher inside the watcher's constructor
-    // since the watcher's initial patch may call $forceUpdate (e.g. inside child
-    // component's mounted hook), which relies on vm._watcher being already defined
+    // 创建渲染watcher
     new Watcher(vm, updateComponent, noop, {
         before() {
             if (vm._isMounted && !vm._isDestroyed) {
