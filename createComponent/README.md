@@ -24,7 +24,7 @@
                 config.parsePlatformTagName(tag), data, children,
                 undefined, undefined, context
             )
-            } else if ((!data || !data.pre) && isDef(Ctor = resolveAsset(context.$options, 'components', tag))) {
+        } else if ((!data || !data.pre) && isDef(Ctor = resolveAsset(context.$options, 'components', tag))) {
             // component
             vnode = createComponent(Ctor, data, context, children, tag)
         } else {
@@ -42,7 +42,7 @@
     }
 ```
 
-## 正式进入createComponent
+## 进入createComponent
 
 > 主要就是通过Vue.extend实例化子组件,分一下几个步骤,代码在src/core/vdom/create-component.js中
 
@@ -67,7 +67,7 @@
         if (isUndef(Ctor)) {
             return
         }
-
+        // 即Vue，在\src\core\global-api\index.js中Vue.$options._base = Vue;
         const baseCtor = context.$options._base
 
         // plain options object: turn it into a constructor
@@ -84,7 +84,7 @@
             return
         }
 
-        // async component
+        // async component 异步组件处理
         let asyncFactory
         if (isUndef(Ctor.cid)) {
             asyncFactory = Ctor
@@ -117,16 +117,18 @@
         // extract props
         const propsData = extractPropsFromVNodeData(data, Ctor, tag)
 
-        // functional component
+        // functional component 函数组件处理
         if (isTrue(Ctor.options.functional)) {
             return createFunctionalComponent(Ctor, propsData, data, context, children)
         }
 
         // extract listeners, since these needs to be treated as
         // child component listeners instead of DOM listeners
+        // 这个父子组件通信事件赋值给listeners
         const listeners = data.on
         // replace with listeners with .native modifier
         // so it gets processed during parent component patch.
+        // 原生事件
         data.on = data.nativeOn
 
         if (isTrue(Ctor.options.abstract)) {
@@ -142,6 +144,7 @@
         }
 
         // install component management hooks onto the placeholder node
+        // 给组件添加全局钩子 init prepatch insert destory
         installComponentHooks(data)
 
         // return a placeholder vnode
