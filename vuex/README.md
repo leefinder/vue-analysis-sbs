@@ -289,7 +289,7 @@ export class Store {
     }
 ```
 
-> 这里做了提供了一个例子，通过path.slice(0, -1)可以取到父module
+> 这里做了一个例子，通过path.slice(0, -1)可以取到父module
 ```
 /** 
 *   对于module a -> c ['a', 'c']

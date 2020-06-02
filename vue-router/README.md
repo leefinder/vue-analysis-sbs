@@ -636,6 +636,47 @@ function addRouteRecord (pathList, pathMap, nameMap, route, parent, matchAs) {
         }
     }
 ```
+> 来看一个简化版的runQueue
+
+```
+const runQueue = function (queue, iterator, cb) {
+    const step = function (index) {
+        if (index >= queue.length) {
+            cb()
+        } else {
+            iterator(queue[index], () => {
+                step(index + 1)
+            })
+        }
+    }
+    step(0)
+}
+let route = 0 // 
+let current = 0
+const iterator = function (hook, next) {
+    hook(++route, current, (to) => {
+        current = route
+        next(to)
+    })
+}
+
+const hook1 = function (to, from, next) {
+    console.log(to, from);
+    next()
+}
+const hook2 = function (to, from, next) {
+    console.log(to, from);
+    next()
+}
+const hook3 = function (to, from, next) {
+    console.log(to, from);
+    next()
+}
+// 打印
+// 1 0
+// 2 1
+// 3 2
+```
 
 ## router-view函数式组件
 
